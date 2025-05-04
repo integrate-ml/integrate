@@ -176,8 +176,7 @@ class Registry {
       cloned = object;
       console.warn("Could not clone object:", error);
     }
-    checkForClashingFunctions(cloned, instantiated);
-    instantiated = Object.assign(instantiated, cloned);
+    assign(instantiated, cloned);
     instantiated.init ? instantiated.init() : {}; //Initialise if possible.
     return instantiated;
   }
@@ -202,16 +201,27 @@ class Registry {
 
 let hasNonAscii = (str) => [...str].some((char) => char.charCodeAt(0) > 127);
 
-function checkForClashingFunctions(source, target) {
-  for (let prop in source) {
-    if (prop in target) {
-      if (typeof target[prop] === "function") {
-        throw new SyntaxError(
-          "Property '" + prop + "' clashes with a class method!"
-        );
-      }
+/**A version of `Object.assign()` which only copies keys present on both objects, and will not allow functions to be overridden.\
+ * Mutates the original object, and returns it.
+ */
+function assign(target, source) {
+  for (let key of Object.getOwnPropertyNames(source)) {
+    let value = source[key];
+    let replace = target[key];
+    if (replace !== undefined) {
+      if (typeof replace !== "function") {
+        target[key] = value;
+      } else console.warn("Cannot replace an object's method: " + key);
+    } else {
+      console.warn(
+        "Cannot create properties using `construct()`-derived functions: " +
+          key +
+          " is not present on type " +
+          target.constructor.name
+      );
     }
   }
+  return target;
 }
 
 export { Registry };
