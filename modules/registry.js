@@ -13,10 +13,8 @@ class Registry {
    * @param {*} item Item to add to registry.
    */
   add(name, item) {
-    if (!name) return; //catch empty name
-    if (!item) return; //catch null items
-    if (typeof name !== "string") name = name.toString(); //Stringify name
-    name = name.toLowerCase(); //Remove case sensitivity.
+    name = Registry.#processName(name);
+    if (!item) throw new TypeError("Registries cannot contain null");
     //Throw an error if the item already exists.
     if (this.has(name))
       throw new SyntaxError(
@@ -33,8 +31,8 @@ class Registry {
    * @returns Whether or not the name exists.
    */
   has(name) {
-    if (typeof name !== "string") name = name.toString(); //Stringify name
-    name = name.toLowerCase(); //Remove case sensitivity.
+    if (!name) return false;
+    name = Registry.#processName(name);
     //Return presence
     return this.#content.has(name);
   }
@@ -44,7 +42,8 @@ class Registry {
    * @returns The item, if present.
    */
   get(name) {
-    if (typeof name !== "string") name = name.toString(); //Stringify name
+    if (!name) throw new ReferenceError("No registry contains null!");
+    name = Registry.#processName(name);
     name = name.toLowerCase(); //Remove case sensitivity.
     //Throw an error if the item doesn't exist.
     if (!this.has(name))
@@ -54,44 +53,13 @@ class Registry {
           " does not exist in registry! Consider checking your spelling."
       );
     //Return item, if it exists.
-    return this.#content.get(name);
-  }
-  /**
-   * Constructs an item from registry. Note that this only works with objects.
-   * @param {string} name Name of item to construct.
-   * @param {Registry} registry Registry for the type of the item.
-   * @param {Function} [defaultType=Object] Constructor function or class to use if there's no defined type.
-   */
-  create(name, registry, defaultType = Object) {
-    return this.#construct(this.get(name), registry, defaultType);
-  }
-  /**
-   * Constructs an item using a type from registry. Note that this only works with objects.
-   * @param {object} object Object to construct.
-   * @param {Function} [defaultType=Object] Constructor function or class to use if there's no defined type.
-   */
-  construct(object, defaultType = Object) {
-    return this.#construct(object, this, defaultType);
-  }
-  #construct(object, registry, defaultType = Object) {
-    if (!object) return; //Catch accidental calls using null, undefined or similar
-    //Constructs an instance using type from registry, if it exists. If not, throw error.
-    //If type is undefined, use the default.
-    let instantiated = new (
-      object.type ? registry.get(object.type) : defaultType
-    )();
-    let cloned = {};
-    //Clone the object if possible, to copy stuff like bullet drawers, or weapon.shoot.pattern. If it fails, just use the original.
+    let item = this.#content.get(name);
     try {
-      cloned = structuredClone(object);
-    } catch (error) {
-      cloned = object;
-      console.warn("Could not clone object:", error);
+      item.registryName = name;
+    } catch (e) {
+      console.warn("Non-object entries do not have full feature support.");
     }
-    checkForClashingFunctions(cloned, instantiated)
-    instantiated = Object.assign(instantiated, cloned);
-    instantiated.init ? instantiated.init() : {}; //Initialise if possible.
-    return instantiated;
+    return item;
   }
   /**
    * Renames a registry item. Neither parameter is case-sensitive.
@@ -99,8 +67,7 @@ class Registry {
    * @param {string} newName What to change the name to.
    */
   rename(name, newName) {
-    if (typeof name !== "string") name = name.toString(); //Stringify name
-    name = name.toLowerCase(); //Remove case sensitivity.
+    name = Registry.#processName(name);
     //Throw an error if the item doesn't exist.
     if (!this.has(name))
       throw new ReferenceError(
@@ -121,8 +88,7 @@ class Registry {
    * @param {string} as What to change the name to.
    */
   alias(name, as) {
-    if (typeof name !== "string") name = name.toString(); //Stringify name
-    name = name.toLowerCase(); //Remove case sensitivity.
+    name = Registry.#processName(name);
     //Throw an error if the item doesn't exist.
     if (!this.has(name))
       throw new ReferenceError(
@@ -136,13 +102,84 @@ class Registry {
     this.add(as, current);
   }
   /**
-   * Executes a function for each element in the registry.
-   * @param {(item, name: string) => void} func Callback for each element.
+   * Performs a function on each item in registry.
+   * @param {(name: string, item) => void} callback Function to perform on each item.
    */
-  forEach(func) {
-    this.#content.forEach((element, name) => {
-      void func(element, name);
-    });
+  forEach(callback) {
+    this.#content.forEach((value, key) => void callback(key, value));
+    return true;
+  }
+  /**
+   * Performs a function on each item in registry asynchronously.
+   * @param {(name: string, item) => void} callback Function to perform on each item.
+   */
+  async forEachAsync(callback) {
+    this.#content.forEach(
+      async (value, key) => await void callback(key, value)
+    );
+  }
+  /**
+   *
+   * @param {int} index Zero-based index of the item to get.
+   * @returns The registry item at the index.
+   */
+  at(index) {
+    if (index >= this.#content.size)
+      throw new RangeError(
+        "Index " + index + " out of bounds for registry length " + this.size
+      );
+    return [...this.#content.keys()][index];
+  }
+  static #processName(name) {
+    if (!name) throw new TypeError("Registry name must be defined");
+    if (hasNonAscii(name))
+      throw new TypeError("Registry names may only contain ASCII characters");
+    return name.toString().toLowerCase();
+  }
+  static isValidName(name) {
+    try {
+      this.#processName(name);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  /**
+   * Constructs an item from this registry, using a type from another registry.
+   * @param {string} name Name of item to construct.
+   * @param {Registry} registry Registry for the type of the item.
+   * @param {Function} [defaultType=Object] Constructor function or class to use if there's no defined type.
+   */
+  create(name, registry, defaultType = Object) {
+    return Registry.#construct(this.get(name), registry, defaultType);
+  }
+  /**
+   * Constructs an item using a type from this registry. Note that this only works with objects.
+   * @param {object} object Object to construct.
+   * @param {Function} [defaultType=Object] Constructor function or class to use if there's no defined type.
+   */
+  construct(object, defaultType = Object) {
+    return Registry.#construct(object, this, defaultType);
+  }
+  static #construct(object, registry, defaultType = Object) {
+    if (!object) return; //Catch accidental calls using null, undefined or similar
+    //Constructs an instance using type from registry, if it exists. If not, throw error.
+    //If type is undefined, use the default.
+    let instantiated = new (
+      object.type ? registry.get(object.type) : defaultType
+    )();
+    let cloned = {};
+    //Clone the object if possible, to copy stuff like bullet drawers, or weapon.shoot.pattern. If it fails, just use the original.
+    try {
+      cloned = structuredClone(object);
+    } catch (error) {
+      cloned = object;
+      console.warn("Could not clone object:", error);
+    }
+    checkForClashingFunctions(cloned, instantiated);
+    instantiated = Object.assign(instantiated, cloned);
+    instantiated.init ? instantiated.init() : {}; //Initialise if possible.
+    return instantiated;
   }
   *[Symbol.iterator]() {
     for (let item of this.#content.values()) {
@@ -163,11 +200,15 @@ class Registry {
   }
 }
 
-function checkForClashingFunctions(source, target){
-  for(let prop in source){
-    if(prop in target){
-      if(typeof target[prop] === "function"){
-        throw new SyntaxError("Property '"+prop+"' clashes with a class method!")
+let hasNonAscii = (str) => [...str].some((char) => char.charCodeAt(0) > 127);
+
+function checkForClashingFunctions(source, target) {
+  for (let prop in source) {
+    if (prop in target) {
+      if (typeof target[prop] === "function") {
+        throw new SyntaxError(
+          "Property '" + prop + "' clashes with a class method!"
+        );
       }
     }
   }

@@ -1,15 +1,22 @@
 # Integrate
 
-A library for mod loading into serialisable registries.
+A library for mod loading into serialisable registries.  
+Can be used in conjunction with [ISL](https://github.com/LightningLaser8/ISL) to perform complex operations.
 
 ## Terminology
 
 - A _registry_ is a data structure for holding case-insensitive key-value pairs. Simply, it matches names to objects, without caring about capitalisation. They are instances of `Integrate.Registry`.
-- *Registry name*s are string locations of an item in a _registry_.
-- *Constructible object*s are basic objects with a `type` property, holding a _registry name_ of a class.
-- _Content_ refers to any constructible object with a registry name, defined by the mod. Any content is an instance of `Integrate.Content`.
+- *Registry name*s or *Registry location*s are strings which are keys in a _registry_. They can be used to refer to a _constructible object_.
+- *Constructible object*s are basic, serialisable objects with a `type` property, holding a _registry name_ of a class.
+- _Content_ refers to any _constructible object_ with a _registry name_, defined by the _mod_. Any content is an instance of `Integrate.Content`.
 - A _mod_ is a directory of files, each one adding _content_.
 - A _content file_ is a JSON file holding a _constructible object_.
+
+### ISL
+
+- _ISL_, or _Integrate Scripting Language_ is an external interpreted scripting language for use with this modloader, to create complex events.
+- A _script_ is a `.isl` file to be executed when an _event_ is fired.
+- An _event_ is a signal from the game that Integrate needs to run some scripts. Every script needs to define which events they fire on.
 
 ## Example (JS)
 
@@ -91,11 +98,13 @@ This is the most important file in any Integrate mod, defining paths and registr
 It consists of a _single array_, each entry being an object with these three properties:  
 `path` defining the _relative location_ of the _content file_ being described.  
 `name` being the _registry name_ of this content.  
-`registry` being optional, defining the registry this content will be added to. By default, this will be `"content"`. **This registry does not exist by default, and will throw errors if not defined.**
+`registry` being optional, defining the registry this content will be added to. By default, this will be `"content"`. **This registry does not exist by default, and will throw errors if not defined using `Integrate.addModdableRegistry()`.**
 
 ### Content Files
 
 These describe the actual content itself, not metadata.
+They can be anywhere, even outside the mod directory, as long as `definitions.json` points to them, and the program can reach them.  
+This is to leave organisation up to the mod developer, so you can organise the files hovever you like.
 
 ```json
 {
@@ -112,6 +121,7 @@ These describe the actual content itself, not metadata.
 ## Interface
 
 Integrate has several functions to customise modloading, which are documented here.
+This section assumes you imported Integrate in a single namespace, called `Integrate`.
 
 ### Integrate.add()
 
@@ -142,7 +152,7 @@ Returns an `Integrate.Mod` object, holding all the info about the imported mod. 
 Integrate.addModdableRegistry(reg: Integrate.Registry, name: string): void
 ```
 
-`reg` is the `Integrate.Registry` (or similar implementing the same methods) to allow modification of.  
+`reg` is the `Integrate.Registry` (or similar object implementing the same methods) to allow modification of.  
 `name` is the string that this registry will be referred to by.
 
 ### Integrate.setPrefix()
@@ -163,7 +173,7 @@ Integrate.setPrefix(value: boolean): void
 Integrate.setInfoOutput(func: (info: string) => void): void
 ```
 
-`func` callback for each status message. THe parameter `info` contains the message, as a string. By default, this function is `console.log`.
+`func` callback for each status message. The parameter `info` contains the message, as a string. By default, this function is `console.log`.
 
 ### Integrate.types
 `Integrate.types` is an `Integrate.Registry` holding all types mod content can be an instance of.
@@ -172,7 +182,7 @@ Integrate.types: Integrate.Registry
 ```
 
 ### Integrate.construct()
-`Integrate.construct()` is a helpful function that combines `Integrate.Registry.create()` and `Integrate.Registry.construct` for mod content.
+`Integrate.construct()` is a helpful function that combines `Integrate.Registry.create()` and `Integrate.Registry.construct()` for mod content. It constructs an object either literally or from any moddable registry, using types from `Integrate.types`.
 ```ts
 Integrate.construct(object: object | string, defaultType: class): object
 ```
@@ -247,8 +257,8 @@ class Registry {
 `add()` Adds an item to registry.  
 `has()` Checks for an item in registry.
 `get()` Gets an item from registry name.  
-`create()` Constructs an item from registry. Note that this only works with objects. The parameter `registry` should be the registry holding all types, such as `Integrate.types`.  
-`construct()` Constructs an item using a type from registry. Note that this only works with object entries.  
+`create()` Constructs an item from this registry. Note that this only works with object entries. The parameter `registry` should be the registry holding all types, such as `Integrate.types`.  
+`construct()` Constructs an item using a type from this registry. Note that this only works with object parameters.  
 `rename()` Renames a registry item. Neither parameter is case-sensitive.  
 `alias()` Adds another registry item with the same content as the specified one.  
 `forEach()` Executes a function for each element in the registry.  
