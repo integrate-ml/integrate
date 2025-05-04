@@ -5,7 +5,7 @@ import { Mod } from "./mod.js";
 let info = console.log;
 
 const requiredContentProperties = ["type"];
-let currentPath = window.location.href;
+let currentPath = globalThis.location.href;
 let prefix = false;
 
 async function loadContentFile(path, name, registry) {
