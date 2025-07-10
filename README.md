@@ -27,7 +27,12 @@ _Adding Integrate mods to your project_
 import * as Integrate from "../integrate.js";
 //"Game" Setup
 Integrate.types.add("entity", class Entity {});
-Integrate.types.add("block", class Block {});
+Integrate.types.add("block", class Block {
+  type = "block"
+  health = 0;
+  width = 0;
+  height = 0;
+});
 Integrate.types.add("item", class Item {});
 
 //Modloader Setup
@@ -39,7 +44,8 @@ Integrate.setPrefix(true);
 Integrate.add("./mod").then(() => content.forEach(x => console.log(Integrate.construct(x))));
 ```
 
-On load, logs:
+When used on the example directory below,
+on load, logs:
 
 ```
 > Block {type: "block", width: 20, height: 20, health: 200}

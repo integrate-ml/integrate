@@ -2,8 +2,10 @@
  * Data structure for holding **unique, case-insensitive** key-value pairs.
  */
 class Registry {
-  ///Internal Map for holding the registry items.
+  // Internal Map for holding the registry items.
   #content = new Map();
+  // holds aliased names
+  #aliases = new Map();
   get size() {
     //Get size of the internal Map.
     return this.#content.size;
@@ -30,11 +32,14 @@ class Registry {
    * @param {string} name Registry name to check for. Not case sensitive.
    * @returns Whether or not the name exists.
    */
-  has(name) {
+  has(name, excludeAliases = false) {
     if (!name) return false;
     name = Registry.#processName(name);
     //Return presence
-    return this.#content.has(name);
+    return (
+      this.#content.has(name) ||
+      (!excludeAliases && this.#aliases.has(name) && !!this.#aliases.get(name))
+    );
   }
   /**
    * Gets an item from registry name.
@@ -53,13 +58,20 @@ class Registry {
           " does not exist in registry! Consider checking your spelling."
       );
     //Return item, if it exists.
-    let item = this.#content.get(name);
-    try {
-      item.registryName = name;
-    } catch (e) {
-      console.warn("Non-object entries do not have full feature support.");
+    if (this.#content.has(name)) {
+      let item = this.#content.get(name);
+      try {
+        item.registryName = name;
+      } catch (e) {
+        console.warn("Non-object entries do not have full feature support.");
+      }
+      return item;
     }
-    return item;
+    //if no item, it's an alias
+    else {
+      //use recursion
+      return this.get(this.#aliases.get(name));
+    }
   }
   /**
    * Renames a registry item. Neither parameter is case-sensitive.
@@ -83,31 +95,65 @@ class Registry {
     this.add(newName, current);
   }
   /**
-   * Adds another registry item with the same content as the specified one.
+   * Adds another registry item with the same content as the specified one.\
+   * Can't alias other aliases.
    * @param {string} name Registry name to change.
    * @param {string} as What to change the name to.
    */
   alias(name, as) {
     name = Registry.#processName(name);
     //Throw an error if the item doesn't exist.
-    if (!this.has(name))
+    if (!this.has(name, true))
       throw new ReferenceError(
         "Item " +
           name +
           " does not exist in registry! Consider checking your spelling."
       );
-    //Get current entry
-    let current = this.get(name);
-    //Add new entry with the same content
-    this.add(as, current);
+    //Add alias
+    this.#aliases.set(as, name);
+    console.log("added alias " + as + " for " + name, this.#aliases);
+  }
+  /**
+   * Gets an array of aliases for a specified name.
+   * @param {string} name Registry name to look for.
+   */
+  aliasesFor(name) {
+    name = Registry.#processName(name);
+    let aliases = [];
+    for (let al of this.#aliases.entries()) {
+      if (al[1] === name) aliases.push(al[0]);
+    }
+    return aliases;
+  }
+  /**
+   * Gets the original name for an alias.
+   * @param {string} alias Alias to get the original name for.
+   */
+  dealias(alias) {
+    alias = Registry.#processName(alias);
+    if (!this.has(alias))
+      throw new ReferenceError(
+        "Item " +
+          name +
+          " does not exist in registry! Consider checking your spelling."
+      );
+    return this.#aliases.get(alias) || alias;
   }
   /**
    * Performs a function on each item in registry.
-   * @param {(name: string, item) => void} callback Function to perform on each item.
+   * @param {(item, name: string) => void} callback Function to perform on each item.
    */
   forEach(callback) {
-    this.#content.forEach((value, key) => void callback(key, value));
-    return true;
+    this.#content.forEach((value, key) => void callback(value, key));
+  }
+  /**
+   * Performs a function on each item in registry, and returns a new registry with the projected items.
+   * @param {(item: any, name: string) => any} callback Function to perform on each item.
+   */
+  map(callback) {
+    let newreg = new Registry();
+    this.#content.forEach((value, key) => newreg.add(key, callback(value, key)));
+    return newreg;
   }
   /**
    * Performs a function on each item in registry asynchronously.
@@ -121,7 +167,7 @@ class Registry {
   /**
    *
    * @param {int} index Zero-based index of the item to get.
-   * @returns The registry item at the index.
+   * @returns The registry name at the index.
    */
   at(index) {
     if (index >= this.#content.size)
