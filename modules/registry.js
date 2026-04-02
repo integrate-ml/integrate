@@ -134,7 +134,9 @@ class Registry {
    * @param {(item: T, name: string) => void} callback Function to perform on each item.
    */
   forEach(callback) {
-    this.#content.forEach((value, key) => void callback(value, key));
+    for (let v of this.#content) {
+      void callback(v[1], v[0]);
+    }
   }
   /**
    * Performs a function on each item in registry, and returns a new registry with the projected items.
@@ -153,7 +155,7 @@ class Registry {
    */
   async forEachAsync(callback) {
     for (let v of this.#content) {
-      await void callback(v[1], v[0]);
+      void await callback(v[1], v[0]);
     }
   }
   /**
