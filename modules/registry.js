@@ -1,10 +1,13 @@
 /**
  * Data structure for holding **unique, case-insensitive** key-value pairs.
+ * @template T
  */
 class Registry {
   // Internal Map for holding the registry items.
+  /**@type {Map<string, T>} */
   #content = new Map();
   // holds aliased names
+  /**@type {Map<string, string>} */
   #aliases = new Map();
   get size() {
     //Get size of the internal Map.
@@ -12,7 +15,7 @@ class Registry {
   }
   /** Adds an item to registry.
    * @param {string} name Registry name of item. This is not case sensitive.
-   * @param {*} item Item to add to registry.
+   * @param {T} item Item to add to registry.
    */
   add(name, item) {
     name = Registry.#processName(name);
@@ -20,9 +23,7 @@ class Registry {
     //Throw an error if the item already exists.
     if (this.has(name))
       throw new SyntaxError(
-        "Item " +
-          name +
-          " already exists in registry! Consider using a different name."
+        "Item " + name + " already exists in registry! Consider using a different name.",
       );
     //Add to internal Map
     this.#content.set(name, item);
@@ -44,18 +45,15 @@ class Registry {
   /**
    * Gets an item from registry name.
    * @param {string} name Registry name to get. Not case sensitive.
-   * @returns The item, if present.
+   * @returns {T?} The item, if present.
    */
   get(name) {
     if (!name) throw new ReferenceError("No registry contains null!");
     name = Registry.#processName(name);
-    name = name.toLowerCase(); //Remove case sensitivity.
     //Throw an error if the item doesn't exist.
     if (!this.has(name))
       throw new ReferenceError(
-        "Item " +
-          name +
-          " does not exist in registry! Consider checking your spelling."
+        "Item " + name + " does not exist in registry! Consider checking your spelling.",
       );
     //Return item, if it exists.
     if (this.#content.has(name)) {
@@ -68,10 +66,8 @@ class Registry {
       return item;
     }
     //if no item, it's an alias
-    else {
-      //use recursion
-      return this.get(this.#aliases.get(name));
-    }
+    //use recursion
+    return this.get(this.#aliases.get(name));
   }
   /**
    * Renames a registry item. Neither parameter is case-sensitive.
@@ -83,9 +79,7 @@ class Registry {
     //Throw an error if the item doesn't exist.
     if (!this.has(name))
       throw new ReferenceError(
-        "Item " +
-          name +
-          " does not exist in registry! Consider checking your spelling."
+        "Item " + name + " does not exist in registry! Consider checking your spelling.",
       );
     //Get entry
     let current = this.get(name);
@@ -105,9 +99,7 @@ class Registry {
     //Throw an error if the item doesn't exist.
     if (!this.has(name, true))
       throw new ReferenceError(
-        "Item " +
-          name +
-          " does not exist in registry! Consider checking your spelling."
+        "Item " + name + " does not exist in registry! Consider checking your spelling.",
       );
     //Add alias
     this.#aliases.set(as, name);
@@ -133,67 +125,62 @@ class Registry {
     alias = Registry.#processName(alias);
     if (!this.has(alias))
       throw new ReferenceError(
-        "Item " +
-          name +
-          " does not exist in registry! Consider checking your spelling."
+        "Item " + name + " does not exist in registry! Consider checking your spelling.",
       );
     return this.#aliases.get(alias) || alias;
   }
   /**
    * Performs a function on each item in registry.
-   * @param {(item, name: string) => void} callback Function to perform on each item.
+   * @param {(item: T, name: string) => void} callback Function to perform on each item.
    */
   forEach(callback) {
     this.#content.forEach((value, key) => void callback(value, key));
   }
   /**
    * Performs a function on each item in registry, and returns a new registry with the projected items.
-   * @param {(item: any, name: string) => any} callback Function to perform on each item.
+   * @template V
+   * @param {(item: T, name: string) => V} callback Function to perform on each item.
    */
   map(callback) {
+    /**@type {Registry<V>} */
     let newreg = new Registry();
     this.#content.forEach((value, key) => newreg.add(key, callback(value, key)));
     return newreg;
   }
   /**
    * Performs a function on each item in registry asynchronously.
-   * @param {(name: string, item) => void} callback Function to perform on each item.
+   * @param {(item: T, name: string) => void} callback Function to perform on each item.
    */
   async forEachAsync(callback) {
-    this.#content.forEach(
-      async (value, key) => await void callback(key, value)
-    );
+    for (let v of this.#content) {
+      await void callback(v[1], v[0]);
+    }
   }
   /**
-   *
+   * Gets the item an a certain index in the registry.
    * @param {int} index Zero-based index of the item to get.
    * @returns The registry name at the index.
    */
   at(index) {
     if (index >= this.#content.size)
-      throw new RangeError(
-        "Index " + index + " out of bounds for registry length " + this.size
-      );
-    return [...this.#content.keys()][index];
+      throw new RangeError("Index " + index + " out of bounds for registry length " + this.size);
+    let iter = this.#content.keys(), res = null;
+    for(let i = 0; i < index; i++) res = iter.next();
+    return res.value;
   }
   static #processName(name) {
     if (!name) throw new TypeError("Registry name must be defined");
-    if (hasNonAscii(name))
-      throw new TypeError("Registry names may only contain ASCII characters");
-    return name.toString().toLowerCase();
+    const ns = `${name}`;
+    if (hasNonAscii(ns)) throw new TypeError("Registry names may only contain ASCII characters");
+    return ns.toLowerCase();
   }
   static isValidName(name) {
-    try {
-      this.#processName(name);
-      return true;
-    } catch (error) {
-      return false;
-    }
+    return typeof name === "string" && !hasNonAscii(name);
   }
   /**
    * Constructs an item from this registry, using a type from another registry.
    * @param {string} name Name of item to construct.
-   * @param {Registry} registry Registry for the type of the item.
+   * @param {Registry<Function>} registry Registry for the type of the item.
    * @param {Function} [defaultType=Object] Constructor function or class to use if there's no defined type.
    */
   create(name, registry, defaultType = Object) {
@@ -211,9 +198,7 @@ class Registry {
     if (!object) return; //Catch accidental calls using null, undefined or similar
     //Constructs an instance using type from registry, if it exists. If not, throw error.
     //If type is undefined, use the default.
-    let instantiated = new (
-      object.type ? registry.get(object.type) : defaultType
-    )();
+    let instantiated = new (object.type ? registry.get(object.type) : defaultType)();
     let cloned = {};
     //Clone the object if possible, to copy stuff like bullet drawers, or weapon.shoot.pattern. If it fails, just use the original.
     try {
@@ -227,21 +212,20 @@ class Registry {
     return instantiated;
   }
   *[Symbol.iterator]() {
-    for (let item of this.#content.values()) {
-      yield item;
+    for (let item of this.#content) {
+      yield {key: item[0], value: item[1]};
     }
   }
   /**
    * Searches the registry for any entries with matching content. Equivalence follows `===` rules.
-   * @param {*} item Item to search for.
+   * @param {T} item Item to search for.
    * @returns {string | null} Null if no entry with the item exists, the corresponding name otherwise.
    */
   nameOf(item) {
-    let found = null;
-    this.forEach((ritem, name) => {
-      if (ritem === item) found = name;
-    });
-    return found;
+    for (let v of this.#content) {
+      if (v[1] === item) return v[0];
+    }
+    return null;
   }
 }
 
@@ -263,7 +247,7 @@ function assign(target, source) {
         "Cannot create properties using `construct()`-derived functions: " +
           key +
           " is not present on type " +
-          target.constructor.name
+          target.constructor.name,
       );
     }
   }
