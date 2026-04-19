@@ -1,20 +1,19 @@
 //Basics
-import { add, load, setPrefix, setInfoOutput } from "./modules/modloader.js";
+import { registries, types } from "./modules/environment.js";
+import { addModdableRegistry, Content } from "./modules/modcontent.js";
+import { add, load, setInfoOutput, setPrefix } from "./modules/modloader.js";
 import { Registry } from "./modules/registry.js";
-import { types } from "./modules/environment.js";
-import { addModdableRegistry } from "./modules/modcontent.js";
-import { Content } from "./modules/modcontent.js";
-import { registries } from "./modules/environment.js";
 
 export {
-  Registry,
-  Content,
   add,
   addModdableRegistry,
+  Content,
   load,
-  setPrefix,
+  registries,
+  Registry,
   setInfoOutput,
-  types,
+  setPrefix,
+  types
 };
 
 /**
@@ -24,19 +23,20 @@ export {
  */
 function construct(object, defaultType = Object) {
   if (typeof object === "string") {
-    return constructObject(getFromAnyRegistry(object), defaultType)
+    return constructObject(getFromAnyRegistry(object), defaultType);
   } else {
     return constructObject(object, defaultType);
   }
 }
 function getFromAnyRegistry(name) {
-  for(let reg of registries){
-    if(reg.has(name)) return reg.get(name);
+  for (let reg of registries) {
+    if (reg.has(name)) return reg.get(name);
   }
-  reg.get(null)
+  reg.get(null);
 }
 
 function constructObject(object, defaultType = Object) {
   return types.construct(object, defaultType);
 }
 export { construct };
+

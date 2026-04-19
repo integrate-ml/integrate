@@ -155,7 +155,7 @@ class Registry {
    */
   async forEachAsync(callback) {
     for (let v of this.#content) {
-      void await callback(v[1], v[0]);
+      void (await callback(v[1], v[0]));
     }
   }
   /**
@@ -166,8 +166,9 @@ class Registry {
   at(index) {
     if (index >= this.#content.size)
       throw new RangeError("Index " + index + " out of bounds for registry length " + this.size);
-    let iter = this.#content.keys(), res = null;
-    for(let i = 0; i < index; i++) res = iter.next();
+    let iter = this.#content.keys(),
+      res = null;
+    for (let i = 0; i < index; i++) res = iter.next();
     return res.value;
   }
   static #processName(name) {
@@ -215,7 +216,7 @@ class Registry {
   }
   *[Symbol.iterator]() {
     for (let item of this.#content) {
-      yield {key: item[0], value: item[1]};
+      yield { key: item[0], value: item[1] };
     }
   }
   /**

@@ -1,6 +1,6 @@
-import { Content } from "./modcontent.js";
 import { getJSONFromFile } from "./get-json-file.js";
 import { Mod } from "./mod.js";
+import { Content } from "./modcontent.js";
 
 let info = console.log;
 
@@ -9,21 +9,20 @@ let currentPath = globalThis.location.href;
 let prefix = false;
 
 async function loadContentFile(path, name, registry) {
-  info("Fetching content: "+name+" (at "+path+")")
+  info(`Fetching content: ${name} (at ${path})`);
   let obj = await getJSONFromFile(relativeURL(path));
   if (!obj)
     throw new ReferenceError(
-      "Mod Ccntent file [at " + definitionPath + "] empty or not found."
+      `Mod content file [at ${definitionPath}] is either empty or not found.`,
     );
   let content = new Content();
   for (let prop of requiredContentProperties)
-    if (obj[prop] == null)
-      throw new SyntaxError("Mod content must define property: '" + prop + "'");
+    if (obj[prop] == null) throw new SyntaxError(`Mod content must define property: '${prop}'`);
   content.constructible = obj;
   content.JSON = JSON.stringify(obj);
   content.name = name;
   content.registry = registry;
-  info("Content fetched: ",content)
+  info("Content fetched: ", content);
   return content;
 }
 /**
@@ -37,13 +36,13 @@ async function loadMod(path) {
   let definitionPath = "";
   let mod = new Mod();
 
-  info("|| LOADING MOD FROM " + root + " ||");
+  info(`|| LOADING MOD FROM ${root} ||`);
   try {
     //##### GET MOD #####
 
     let modJSON = await getJSONFromFile(root + "mod.json");
     if (!modJSON) throw new ReferenceError("Mod contains no mod.json!");
-    info("| MOD IDENTIFIED: " + (modJSON.displayName ?? "Mod") + " |");
+    info(`| MOD IDENTIFIED: ${modJSON.displayName ?? "Mod"} |`);
 
     //##### BASIC FEATURES #####
     info("| STAGE 1: DETAILS |");
@@ -56,10 +55,7 @@ async function loadMod(path) {
     if (modJSON.tagline) mod.tagline = modJSON.tagline;
     if (modJSON.description) mod.description = modJSON.description;
     if (modJSON.definitions) definitionPath = modJSON.definitions;
-    else
-      throw new SyntaxError(
-        "mod.json must define the path to the definition file!"
-      );
+    else throw new SyntaxError("mod.json must define the path to the definition file!");
 
     //##### DEFINITIONS #####
     info("| STAGE 2: DEFINITIONS |");
@@ -67,21 +63,16 @@ async function loadMod(path) {
     let definitions = await getJSONFromFile(definitionPath);
     if (!definitions)
       throw new ReferenceError(
-        "Definition file [at " + definitionPath + "] empty or not found."
+        `Definition file [at ${definitionPath}] is either empty or not found.`,
       );
     if (!Array.isArray(definitions))
-      throw new SyntaxError(
-        "Definition file must contain only a single array."
-      );
+      throw new SyntaxError("Definition file must contain only a single array.");
 
     let contents = [];
     for (let entry of definitions) {
-      if (typeof entry !== "object")
-        throw new SyntaxError("Content definitions must be objects.");
+      if (typeof entry !== "object") throw new SyntaxError("Content definitions must be objects.");
       if (!entry.path)
-        throw new SyntaxError(
-          "Content definitions must contain a path to the content."
-        );
+        throw new SyntaxError("Content definitions must contain a path to the content.");
       contents.push(entry);
     }
     info("| STAGE 3: CONTENT |");
@@ -89,7 +80,7 @@ async function loadMod(path) {
       let content = await loadContentFile(
         relativeURLFrom(definitionPath, entry.path),
         entry.name ?? "item",
-        entry.registry ?? "content"
+        entry.registry ?? "content",
       );
       mod.content.push(content);
     }
@@ -106,12 +97,10 @@ async function loadMod(path) {
  * @param {Mod} mod Mod to add to the program.
  */
 async function addMod(mod) {
-  info("|| POST-LOADING MOD: " + mod.displayName + " ||");
+  info(`|| POST-LOADING MOD: ${mod.displayName} ||`);
   if (prefix) {
     info("| POST-LOAD: PREFIXES |");
-    mod.content.forEach(
-      (content) => (content.name = mod.name + ":" + content.name)
-    );
+    mod.content.forEach((content) => (content.name = `${mod.name}:${content.name}`));
   }
   info("| POST-LOAD: REGISTRY |");
   mod.content.forEach((content) => content.implement());
@@ -146,14 +135,9 @@ function setPrefix(value) {
  * @param {(info: string) => void} func Callback to handle info text.
  */
 function setInfoOutput(func) {
-  if (typeof func !== "function")
-    throw new TypeError("Cannot set info output to a non-function!");
+  if (typeof func !== "function") throw new TypeError("Cannot set info output to a non-function!");
   info = func;
 }
 
-export {
-  loadMod as load,
-  add,
-  setPrefix,
-  setInfoOutput,
-};
+export { add, loadMod as load, setInfoOutput, setPrefix };
+

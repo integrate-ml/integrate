@@ -1,5 +1,5 @@
+import { registries, types } from "./environment.js";
 import { Registry } from "./registry.js";
-import { types, registries } from "./environment.js";
 
 //Content
 class Content {
@@ -30,4 +30,5 @@ function addModdableRegistry(reg, name) {
   //Funny, isn't it?
   registries.add(name, reg);
 }
-export { Content, addModdableRegistry };
+export { addModdableRegistry, Content };
+
