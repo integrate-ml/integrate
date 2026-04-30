@@ -1,3 +1,4 @@
+// @ts-check
 import { registries, types } from "./environment.js";
 import { Registry } from "./registry.js";
 
@@ -23,7 +24,8 @@ class Content {
 //Manipulation and Exports
 /**
  * Allows mods to modify a registry, by using a certain name.
- * @param {Registry} reg Registry to add.
+ * @template T
+ * @param {Registry<T>} reg Registry to add.
  * @param {string} name Name of the registry, to be used in mod content.
  */
 function addModdableRegistry(reg, name) {

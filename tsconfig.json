@@ -1,0 +1,11 @@
+{
+  "include": ["**/*.js"],
+  "exclude": ["test/*"],
+  "compilerOptions": {
+    "allowJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    // "outDir": "./ts",
+    "module": "preserve"
+  }
+}

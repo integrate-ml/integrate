@@ -1,3 +1,5 @@
+// @ts-check
+
 import { getJSONFromFile } from "./get-json-file.js";
 import { Mod } from "./mod.js";
 import { Content } from "./modcontent.js";
@@ -7,13 +9,18 @@ let info = console.log;
 const requiredContentProperties = ["type"];
 let currentPath = globalThis.location.href;
 let prefix = false;
-
+/**
+ * @param {string} path Path to search for the file at.
+ * @param {string} name Registry name of the content at that location.
+ * @param {string} registry Name of the registry to add the content to.
+ * @returns 
+ */
 async function loadContentFile(path, name, registry) {
   info(`Fetching content: ${name} (at ${path})`);
-  let obj = await getJSONFromFile(relativeURL(path));
+  let obj = await getJSONFromFile(makeAbsolute(path));
   if (!obj)
     throw new ReferenceError(
-      `Mod content file [at ${definitionPath}] is either empty or not found.`,
+      `Mod content file [at ${path}] is either empty or not found.`,
     );
   let content = new Content();
   for (let prop of requiredContentProperties)
@@ -32,7 +39,7 @@ async function loadContentFile(path, name, registry) {
 async function loadMod(path) {
   resetPath();
   //##### SETUP #####
-  let root = relativeURL(path) + "/";
+  let root = makeAbsolute(path) + "/";
   let definitionPath = "";
   let mod = new Mod();
 
@@ -59,7 +66,7 @@ async function loadMod(path) {
 
     //##### DEFINITIONS #####
     info("| STAGE 2: DEFINITIONS |");
-    definitionPath = relativeURLFrom(root, definitionPath);
+    definitionPath = makeAbsoluteRelativeTo(root, definitionPath);
     let definitions = await getJSONFromFile(definitionPath);
     if (!definitions)
       throw new ReferenceError(
@@ -78,7 +85,7 @@ async function loadMod(path) {
     info("| STAGE 3: CONTENT |");
     for (const entry of contents) {
       let content = await loadContentFile(
-        relativeURLFrom(definitionPath, entry.path),
+        makeAbsoluteRelativeTo(definitionPath, entry.path),
         entry.name ?? "item",
         entry.registry ?? "content",
       );
@@ -108,16 +115,18 @@ async function addMod(mod) {
 
   info("|| MOD FULLY LOADED ||");
 }
-
+/** @param {string} path Path to the mod's directory. */
 async function add(path) {
   return await addMod(await loadMod(path));
 }
 
-function relativeURL(path) {
+/** @param {string} path Path to absolve (or whatever it's called) */
+function makeAbsolute(path) {
   return new URL(path, currentPath).href;
 }
-function relativeURLFrom(currentPath, path) {
-  return new URL(path, currentPath).href;
+/** @param {string} path Path to absolve (or whatever it's called) @param {string} base The base to resolve relative to.*/
+function makeAbsoluteRelativeTo(base, path) {
+  return new URL(path, base).href;
 }
 function resetPath() {
   currentPath = window.location.href;

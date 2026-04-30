@@ -1,3 +1,4 @@
+// @ts-check
 import { Content } from "./modcontent.js";
 
 class Mod {
