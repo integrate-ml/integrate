@@ -23,9 +23,11 @@ Can be used in conjunction with [ISL](https://github.com/LightningLaser8/ISL) to
 _Adding Integrate mods to your project_
 
 ```js
-//Import Integrate
-import * as Integrate from "../integrate.js";
-//"Game" Setup
+// Import Integrate
+import Integrate from "../integrate.js";
+// Optional line for VS Code IntelliSense
+/// <reference path="../integrate"/>
+// "Game" Setup
 Integrate.types.add("entity", class Entity {});
 Integrate.types.add("block", class Block {
   type = "block"
@@ -35,12 +37,12 @@ Integrate.types.add("block", class Block {
 });
 Integrate.types.add("item", class Item {});
 
-//Modloader Setup
+// Modloader Setup
 let content = new Integrate.Registry();
 Integrate.addModdableRegistry(content, "content");
 Integrate.setPrefix(true);
 
-//Tests
+// Tests
 Integrate.add("./mod").then(() => content.forEach(x => console.log(Integrate.construct(x))));
 ```
 

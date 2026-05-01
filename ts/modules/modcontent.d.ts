@@ -15,6 +15,6 @@ export class Content {
     /** The JSON equivalent of the constructible. */
     JSON: string;
     implement(): void;
-    create(): object | undefined;
+    create(): object;
 }
 import { Registry } from "./registry.js";
