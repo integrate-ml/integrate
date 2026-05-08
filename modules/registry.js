@@ -55,7 +55,7 @@ class Registry {
    * @returns {Unconstructed<T>?} The item, if present.
    */
   tryGet(name = "") {
-    if (!name) throw new ReferenceError("No registry contains null!");
+    if (!name) return null;
     name = Registry.#processName(name);
     //Throw an error if the item doesn't exist.
     //Return item, if it exists.
