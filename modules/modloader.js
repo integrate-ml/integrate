@@ -103,7 +103,7 @@ async function loadMod(path) {
  * Adds a mod to the program.
  * @param {Mod} mod Mod to add to the program.
  */
-async function addMod(mod) {
+function addMod(mod) {
   info(`|| POST-LOADING MOD: ${mod.displayName} ||`);
   if (prefix) {
     info("| POST-LOAD: PREFIXES |");
@@ -114,10 +114,11 @@ async function addMod(mod) {
   info("|| POST-LOAD COMPLETE ||");
 
   info("|| MOD FULLY LOADED ||");
+  return mod;
 }
 /** @param {string} path Path to the mod's directory. */
 async function add(path) {
-  return await addMod(await loadMod(path));
+  return addMod(await loadMod(path));
 }
 
 /** @param {string} path Path to absolve (or whatever it's called) */
