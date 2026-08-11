@@ -25,7 +25,7 @@ _Adding Integrate mods to your project_
 ```js
 // Import Integrate
 import Integrate from "../integrate.js";
-// Optional line for VS Code IntelliSense
+// Optional line for better VS Code IntelliSense
 /// <reference path="../integrate"/>
 // "Game" Setup
 Integrate.types.add("entity", class Entity {});
@@ -38,12 +38,20 @@ Integrate.types.add("block", class Block {
 Integrate.types.add("item", class Item {});
 
 // Modloader Setup
-let content = new Integrate.Registry();
-Integrate.addModdableRegistry(content, "content");
 Integrate.setPrefix(true);
 
 // Tests
-Integrate.add("./mod").then(() => content.forEach(x => console.log(Integrate.construct(x))));
+Integrate.load("./mod") // gets the mod asynchronously
+  .then(() => {
+    Integrate.postLoad(); // actually add the content
+    Integrate.content.forEach(x => console.log(Integrate.construct(x)))
+  });
+
+// Alternatively,
+Integrate.setMods("./mod") // cleans up, loads and implements in one go
+  .then(() => {
+    Integrate.content.forEach(x => console.log(Integrate.construct(x)))
+  });
 ```
 
 When used on the example directory below,
@@ -87,7 +95,7 @@ Holds the basic information for the mod:
 `author` defines the name that should be shown to have made the mod.  
 `version` defines the _mod's version_, should be used to detect updated mods in saves, for example.
 
-`definitions` gives the path _from the mod.json file_ to the dfinition file.
+`definitions` gives the path _from the mod.json file_ to the definition file.
 
 ### Definition File
 
@@ -96,7 +104,7 @@ This is the most important file in any Integrate mod, defining paths and registr
 ```json
 [
   {
-    "path": "./wall.json",
+    "path": "./wall.idef",
     "name": "wall",
     "registry": "content"
   }
@@ -108,11 +116,61 @@ It consists of a _single array_, each entry being an object with these three pro
 `name` being the _registry name_ of this content.  
 `registry` being optional, defining the registry this content will be added to. By default, this will be `"content"`. **This registry does not exist by default, and will throw errors if not defined using `Integrate.addModdableRegistry()`.**
 
+This file can be placed completely inline in `mod.json`:
+```json
+{
+  "name": "example",
+  "displayName": "Example Mod",
+  "definitions": [
+    {
+      "path": "./wall.idef",
+      "name": "wall",
+      "registry": "content"
+    }
+  ],
+  "tagline": "Basic mod to show functionality.",
+  "description": "This mod exists only to show functionality of the modloader, and is not intended to be played with in any game. It is purely for demonstrative purposes.",
+  "author": "LightningLaser8",
+  "version": "v0.1.0"
+}
+```
+
+Additionally, any entry `{ "path": "registry/name.idef", "name": "name", "registry": "registry"}` where the path matches the registry and name, may be listed as its path alone:
+```json
+{
+  "name": "example",
+  "displayName": "Example Mod",
+  "definitions": [
+    "content/wall.idef"
+  ],
+  "tagline": "Basic mod to show functionality.",
+  "description": "This mod exists only to show functionality of the modloader, and is not intended to be played with in any game. It is purely for demonstrative purposes.",
+  "author": "LightningLaser8",
+  "version": "v0.1.0"
+}
+```
+If the registry is omitted, then the default registry of `content` will be used:
+```json
+{
+  "name": "example",
+  "displayName": "Example Mod",
+  "definitions": [
+    "wall.idef" // The same as { "path": "./wall.idef", "name": "wall", "registry": "content" }
+  ],
+  "tagline": "Basic mod to show functionality.",
+  "description": "This mod exists only to show functionality of the modloader, and is not intended to be played with in any game. It is purely for demonstrative purposes.",
+  "author": "LightningLaser8",
+  "version": "v0.1.0"
+}
+```
+
 ### Content Files
 
 These describe the actual content itself, not metadata.
 They can be anywhere, even outside the mod directory, as long as `definitions.json` points to them, and the program can reach them.  
 This is to leave organisation up to the mod developer, so you can organise the files hovever you like.
+
+These aren't JSON files, but they are similar - most JSON should work.
 
 ```json
 {
@@ -123,23 +181,196 @@ This is to leave organisation up to the mod developer, so you can organise the f
 }
 ```
 
+Equivalently, you could use some more friendly syntax:
+
+```
+// comments are allowed here too
+type: block
+width: 20
+height: 20
+health: 200
+```
+
 `type` is mandatory, it defines the _registry name_ of the class this object will be an instance of.  
 `width`, `height` and `health` are specific to this type, and are not necessary in content files. They are properties of the class stored at `"block"` in the Registry `Integrate.types`.
+
+### .idef Files
+Integrate Content Definition files (.idef) store content in a JSON-like hierarchical data format, but with additional features.
+
+**Most JSON will still work! This is unnecessary if you are upgrading your mod to use the new Integrate API.**
+
+**Only `.idef` files will use this - if a file is `.json`, it will be interpreted as JSON.**
+
+```
+// Comments are allowed in these files.
+{
+  "type": "block",
+  "width": 20,
+  "height": 20, // in any position
+  "health": 200
+  // but only line comments.
+}
+```
+
+Additionally, top-level braces are optional:
+
+```
+{
+  "type": "block",
+  "width": 20,
+  "height": 20,
+  "health": 200
+}
+```
+and
+```
+"type": "block",
+"width": 20,
+"height": 20,
+"health": 200
+```
+are equivalent.
+
+---
+
+Quotes on property names and single-line strings are optional too, as well as commas after each property, (as long as they are on separate lines):
+```
+type: block
+width: 20 34
+height: 20
+health: 200
+```
+
+---
+
+This format also introduces _macros_ to data structures: a simple find-and-replace system to reduce code duplication and file size.
+
+To create one, place `<name: value>` at the top of the file, **before any content**:
+```
+<size: 20>
+type: block
+width: 20
+height: 20
+health: 200
+```
+To use it, put `<name>` _anywhere_ in the rest of the file.
+They are evaluated top-to-bottom, and cannot be recursive (though they may still contain each other.)
+```
+<size: 20>
+type: block
+width: <size>
+height: <size>
+health: 200
+```
+
+Fragments of values are allowed: `<name>2` will resolve to `value2` (using the example macro `<name: value>`). Additionally, multiple properties can be used as the value:
+```
+<size: width:<sz>,height:<sz>><sz:20>
+type: block
+<size>
+health: <sz>0
+```
+This is equivalent to all of the above code blocks.
+
+_Note that `<sz>` must come **after** `<size>` to apply properly._
+
+---
+
+Object properties get an upgrade too: you can define registry names for objects inline:
+
+```
+type: weapon
+reload: 60
+bullet: bullets.laser {
+  damage: 3
+  length: 100
+}
+```
+
+is similar to 
+```
+type: weapon
+reload: 60
+bullet: {
+  type: bullets.laser
+  damage: 3
+  length: 100
+}
+```
+but, in the former, the property `bullet` is automatically instantiated _without needing to use `init()`_, which reduces code clutter:
+```js
+class Weapon {
+  reload = 0;
+  bullet = new Bullet();
+  init(){
+    // will not pass in TS
+    this.bullet = Integrate.construct(this.bullet);
+  }
+}
+```
+becomes
+```js
+class Weapon {
+  reload = 0;
+  bullet = new Bullet();
+}
+```
+since the instantiation and construction of `bullet` is handled by Integrate.
+
+---
+For ease of mod interoperability and cooperation, this format allows delayed registry references - these are evaluated after the mod is implemented, to allow for dependencies to load.
+
+```
+// bullets/blaster-shot.idef
+type: bullets.laser
+damage: 3
+length: 100
+
+// weapons/blaster.idef
+type: weapon
+reload: 60
+bullet: @bullets/blaster-shot
+```
+
+Additionally, typed objects and references can be combined, but this increases memory use, since the data are cloned for construction:
+
+```
+// bullets/blaster-shot.idef
+damage: 3
+length: 100
+
+// weapons/blaster.idef
+type: weapon
+reload: 60
+bullet: bullets.laser @bullets/blaster-shot
+```
+
+If your use-case doesn't demand the ability to reference the same registry item with different types, then you can define the automatic type in the file itself:
+```
+// bullets/blaster-shot.idef
+$type: bullets.laser
+damage: 3
+length: 100
+
+// weapons/blaster.idef
+type: weapon
+reload: 60
+bullet: @bullets/blaster-shot
+```
+
+Side note: If using prefixes, references will try to resolve relative to the current mod if they don't find anything:
+
+```
+type: block
+size: 1
+image: @images/blocks.example
+```
+For example, if the mod's ID is `mod`, Integrate will search first for `blocks.example` in the registry `images`, and if that wasn't found, will search for `mod:blocks.example` in `images`.
 
 ## Interface
 
 Integrate has several functions to customise modloading, which are documented here.
 This section assumes you imported Integrate in a single namespace, called `Integrate`.
-
-### Integrate.add()
-
-`Integrate.add()` loads, constructs and implements a mod all in one go.
-
-```ts
-Integrate.add(path: string): void
-```
-
-`path` is the relative path from the current window location to the mod's _root directory_, **not** the mod.json.
 
 ### Integrate.load()
 
@@ -149,8 +380,24 @@ Integrate.add(path: string): void
 Integrate.load(path: string): Integrate.Mod
 ```
 
-`path` is the relative path from the current window location to the mod's _root directory_, **not** the mod.json.  
+`path` is the relative path from the current window location to the mod's _root directory_, **not** the `mod.json`.  
 Returns an `Integrate.Mod` object, holding all the info about the imported mod. Once loaded, this object is all that's needed.
+
+### Integrate.postLoad()
+
+`Integrate.postLoad()` Constructs and implements all current loaded mods.
+
+```ts
+Integrate.postLoad(): void
+```
+### Integrate.setMods()
+
+`Integrate.setMods()` Clears loaded mods, loads those specified in its parameter list, and performs all post-load operations.
+
+```ts
+Integrate.setMods(...paths: string[]): void
+```
+`paths` are all relative paths from the current window location to the mods' _root directories_, **not** their `mod.json`s.  
 
 ### Integrate.addModdableRegistry()
 

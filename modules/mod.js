@@ -1,5 +1,5 @@
 // @ts-check
-import { Content } from "./modcontent.js";
+import { Content } from "./content.js";
 
 class Mod {
   /** Display name of the mod. */

@@ -1,35 +1,33 @@
 // @ts-check
 
-import { getJSONFromFile } from "./get-json-file.js";
+import { Content } from "./content.js";
+import { registries } from "./environment.js";
+import { getCustomFile, getDefFromFile, getJSONFromFile } from "./get-content-file.js";
+import { RegistryReference } from "./language.js";
 import { Mod } from "./mod.js";
-import { Content } from "./modcontent.js";
 
 let info = console.log;
 
-const requiredContentProperties = ["type"];
 let currentPath = globalThis.location.href;
 let prefix = false;
 /**
  * @param {string} path Path to search for the file at.
  * @param {string} name Registry name of the content at that location.
  * @param {string} registry Name of the registry to add the content to.
- * @returns 
+ * @returns
  */
 async function loadContentFile(path, name, registry) {
-  info(`Fetching content: ${name} (at ${path})`);
-  let obj = await getJSONFromFile(makeAbsolute(path));
-  if (!obj)
-    throw new ReferenceError(
-      `Mod content file [at ${path}] is either empty or not found.`,
-    );
-  let content = new Content();
-  for (let prop of requiredContentProperties)
-    if (obj[prop] == null) throw new SyntaxError(`Mod content must define property: '${prop}'`);
-  content.constructible = obj;
-  content.JSON = JSON.stringify(obj);
+  info(`Fetching content: ${name} [at ${path}]`);
+  const pth = makeAbsolute(path);
+  let content = null;
+  if (pth.endsWith(".json")) content = new Content(await getJSONFromFile(pth));
+  else if (pth.endsWith(".idef")) content = new Content(await getDefFromFile(pth));
+  else content = await getCustomFile(pth);
+
+  if (!content)
+    throw new ReferenceError(`Mod content file [at ${path}] is either empty or not found.`);
   content.name = name;
   content.registry = registry;
-  info("Content fetched: ", content);
   return content;
 }
 /**
@@ -48,8 +46,8 @@ async function loadMod(path) {
     //##### GET MOD #####
 
     let modJSON = await getJSONFromFile(root + "mod.json");
-    if (!modJSON) throw new ReferenceError("Mod contains no mod.json!");
-    info(`| MOD IDENTIFIED: ${modJSON.displayName ?? "Mod"} |`);
+    if (!modJSON) throw new ReferenceError("Mod contains no mod.json file!");
+    info(`| MOD FILE LOCATED |`);
 
     //##### BASIC FEATURES #####
     info("| STAGE 1: DETAILS |");
@@ -64,24 +62,46 @@ async function loadMod(path) {
     if (modJSON.definitions) definitionPath = modJSON.definitions;
     else throw new SyntaxError("mod.json must define the path to the definition file!");
 
+    info(
+      `Got info: ${mod.displayName} (${mod.name}) ${mod.version} by ${mod.author}: '${mod.tagline}'`,
+    );
+
     //##### DEFINITIONS #####
     info("| STAGE 2: DEFINITIONS |");
-    definitionPath = makeAbsoluteRelativeTo(root, definitionPath);
-    let definitions = await getJSONFromFile(definitionPath);
+    let definitions = [];
+    if (typeof definitionPath === "string") {
+      definitionPath = makeAbsoluteRelativeTo(root, definitionPath);
+      definitions = await getJSONFromFile(definitionPath);
+    } else {
+      definitions = definitionPath;
+      definitionPath = root;
+    }
     if (!definitions)
       throw new ReferenceError(
         `Definition file [at ${definitionPath}] is either empty or not found.`,
       );
     if (!Array.isArray(definitions))
-      throw new SyntaxError("Definition file must contain only a single array.");
+      throw new SyntaxError("Definition file (or property) must contain only a single array.");
 
+    info(`${definitions.length} definitions`);
     let contents = [];
     for (let entry of definitions) {
-      if (typeof entry !== "object") throw new SyntaxError("Content definitions must be objects.");
-      if (!entry.path)
-        throw new SyntaxError("Content definitions must contain a path to the content.");
-      contents.push(entry);
+      if (typeof entry === "object") {
+        if (!entry.path)
+          throw new SyntaxError("Content definitions must contain a path to the content.");
+        contents.push(entry);
+      } else if (typeof entry === "string") {
+        const parts = entry.split("/"),
+          fname = parts.at(-1);
+        const name = fname ? fname.substring(0, fname?.lastIndexOf(".")) : "item",
+          registry = parts.at(-2) ?? "content";
+
+        contents.push({ path: entry, name, registry });
+      } else throw new SyntaxError("Content definitions must be objects or strings.");
+      // TODO: Make this work with strings:  "../registry/name.idef" or "../registry/name.json"
+      //        equivalent to { path: "../registry/name.idef", name: "name", registry: "registry" }
     }
+    info(`Validated all definitions`);
     info("| STAGE 3: CONTENT |");
     for (const entry of contents) {
       let content = await loadContentFile(
@@ -91,34 +111,86 @@ async function loadMod(path) {
       );
       mod.content.push(content);
     }
+    info(`Loaded ${mod.content.length} items`);
 
     info("|| MOD LOADING SUCCESSFUL ||");
   } catch (e) {
     info("|| MOD LOADING FAILED ||");
     throw e;
   }
+  mods.push(mod);
   return mod;
 }
-/**
- * Adds a mod to the program.
- * @param {Mod} mod Mod to add to the program.
- */
-function addMod(mod) {
-  info(`|| POST-LOADING MOD: ${mod.displayName} ||`);
-  if (prefix) {
-    info("| POST-LOAD: PREFIXES |");
-    mod.content.forEach((content) => (content.name = `${mod.name}:${content.name}`));
-  }
-  info("| POST-LOAD: REGISTRY |");
-  mod.content.forEach((content) => content.implement());
-  info("|| POST-LOAD COMPLETE ||");
 
-  info("|| MOD FULLY LOADED ||");
-  return mod;
+export function unloadMods() {
+  mods.splice(1);
 }
-/** @param {string} path Path to the mod's directory. */
-async function add(path) {
-  return addMod(await loadMod(path));
+
+/** Unloads existing mods, loads the specified mods and performs post-loading. Useful for compact loading of a known list. @param {...string} paths Paths to mods, as you would pass them to {@linkcode loadMod} */
+export async function setMods(...paths) {
+  mods.splice(1);
+  for (const path of paths) {
+    await loadMod(path);
+  }
+  postLoad();
+}
+
+/** @type {Mod[]} */
+const mods = [];
+
+function postLoadClean() {
+  info("| POST-LOAD STAGE 0: PREPARATION |");
+  registries.forEach((r) => {
+    r.destroy();
+  });
+  info(`Cleared registries`);
+}
+function postLoadPrefixes() {
+  info("| POST-LOAD STAGE 1: PREFIXES |");
+  if (prefix)
+    for (const mod of mods) {
+      info(`| PREFIXES [${mod.displayName}] |`);
+      for (const content of mod.content) {
+        if (content.disablePrefixes) continue;
+        const cn = content.name,
+          pf = `${mod.name}:`;
+        if (!cn.startsWith(pf)) content.name = pf + cn;
+
+        info(`Prefixed [${cn}] -> [${content.name}]`);
+      }
+    }
+  else info("| PREFIXES DISABLED |");
+}
+function postLoadImpl() {
+  info("| POST-LOAD STAGE 2: REGISTRY |");
+  for (const mod of mods) {
+    info(`| REGISTRY [${mod.displayName}] |`);
+    for (const content of mod.content) {
+      info(`Implementing [${content.name}]`);
+      content.implement();
+    }
+  }
+}
+function postLoadRefs() {
+  info("| POST-LOAD STAGE 3: REFERENCES |");
+  for (const mod of mods) {
+    info(`| REFERENCES [${mod.displayName}] |`);
+    for (const content of mod.content) {
+      if (content.disableAnalysis) continue;
+      info(`Resolving references for [${content.name}]`);
+      RegistryReference.dereference(content, mod.name);
+    }
+  }
+}
+
+/** Adds all mods loaded. */
+function postLoad() {
+  info("|| POST-LOADING ALL MODS ||");
+  postLoadClean();
+  postLoadPrefixes();
+  postLoadImpl();
+  postLoadRefs();
+  info("|| POST-LOAD COMPLETE ||");
 }
 
 /** @param {string} path Path to absolve (or whatever it's called) */
@@ -149,5 +221,5 @@ function setInfoOutput(func) {
   info = func;
 }
 
-export { add, loadMod as load, setInfoOutput, setPrefix };
+export { loadMod as load, postLoad, setInfoOutput, setPrefix };
 
