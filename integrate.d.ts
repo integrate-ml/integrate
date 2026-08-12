@@ -23,7 +23,7 @@ declare namespace Integrate {
   export type FileHandler = {
     /** Function to create the content's actual value from the file's content. */
     transformer: (file: Uint8Array<ArrayBuffer>, path: string) => any;
-    /** Disables automatic reference resolution for content from this file type. Useful when `transformer` is defined. \ 
+    /** Disables automatic reference resolution for content from this file type. Useful when `transformer` is defined. \
      * Will not prevent reference resolution attempts when used inline (or through a reference), but can still reduce load times. \
      * Strongly recommended if your `transformer` returns any non-object value.
      */
@@ -375,24 +375,24 @@ declare namespace Integrate {
    * Sets the prefix mode for new items. `true` prefixes the mod's name to the item's registry name, `false` just adds it directly.
    * **By default, this is `false`.**
    */
-  export function setPrefix(value: boolean);
+  export function setPrefix(value: boolean): void;
   /**
    * Sets a callback to define how the loader shows info text.
    */
-  export function setInfoOutput(func: (info: string) => void);
+  export function setInfoOutput(func: (info: string) => void): void;
 
   /** Adds content from all mods loaded. Required for mods to be applied. */
-  export function postLoad();
+  export function postLoad(): void;
   /** Adds content from one specific mod. Prefer using `postLoad` or `setMods` when possible, but if registry clearing is undesirable, use this. */
-  export function postLoad(mod: Mod);
+  export function postLoad(mod: Mod): void;
   /** Removes all mod definitions loaded. Does nothing to registries, but can reduce memory use. */
-  export function unloadMods();
+  export function unloadMods(): void;
   /** Unloads existing mods, loads the specified mods and performs post-loading. Useful for compact loading of a known list. @param paths Paths to mods, as you would pass them to {@linkcode loadMod} */
-  export async function setMods(...paths: string[]);
+  export async function setMods(...paths: string[]): Promise<void>;
   /** Loads a mod. */
-  export async function load(path: string): Mod;
+  export async function load(path: string): Promise<Mod>;
   /** Loads and post-loads a mod, without clearing registries. */
-  export async function add(path: string): Mod;
+  export async function add(path: string): Promise<Mod>;
   /** Gets an object from any moddable registries. Uses file path notation: `blocks/wall` gets the content named `wall` from the registry `blocks`.
    */
   export function get(name: string): object;
@@ -410,6 +410,6 @@ declare namespace Integrate {
    * @param extension File extension, without the dot.
    * @param handler Options, including a function to convert the file's bytes to the desired object.
    */
-  export function addHandler(extension: string, handler: FileHandler);
+  export function addHandler(extension: string, handler: FileHandler): void;
 }
 export = Integrate;
