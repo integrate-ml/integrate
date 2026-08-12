@@ -192,6 +192,58 @@ function postLoad() {
   postLoadRefs();
   info("|| POST-LOAD COMPLETE ||");
 }
+/**
+ * @param {Mod} mod
+ */
+function postLoadPrefixesOne(mod) {
+  info(`| STAGE 1: PREFIXES |`);
+  if (prefix)
+    for (const content of mod.content) {
+      if (content.disablePrefixes) continue;
+      const cn = content.name,
+        pf = `${mod.name}:`;
+      if (!cn.startsWith(pf)) content.name = pf + cn;
+
+      info(`Prefixed [${cn}] -> [${content.name}]`);
+    }
+  else info("| PREFIXES DISABLED |");
+}
+/**
+ * @param {Mod} mod
+ */
+function postLoadImplOne(mod) {
+  info(`| STAGE 2: REGISTRY |`);
+  for (const content of mod.content) {
+    info(`Implementing [${content.name}]`);
+    content.implement();
+  }
+}
+/**
+ * @param {Mod} mod
+ */
+function postLoadRefsOne(mod) {
+  info(`| STAGE 3: REFERENCES |`);
+  for (const content of mod.content) {
+    if (content.disableAnalysis) continue;
+    info(`Resolving references for [${content.name}]`);
+    RegistryReference.dereference(content, mod.name);
+  }
+}
+
+/** Adds all mods loaded. @param {Mod} mod */
+function postLoadOne(mod) {
+  info("|| PARTIAL POST-LOAD [${mod.displayName}] ||");
+  postLoadPrefixesOne(mod);
+  postLoadImplOne(mod);
+  postLoadRefsOne(mod);
+  info("|| POST-LOAD COMPLETE ||");
+}
+/** @param {string} path  */
+async function add(path) {
+  const m = await loadMod(path);
+  postLoadOne(m);
+  return m;
+}
 
 /** @param {string} path Path to absolve (or whatever it's called) */
 function makeAbsolute(path) {
@@ -221,5 +273,5 @@ function setInfoOutput(func) {
   info = func;
 }
 
-export { loadMod as load, postLoad, setInfoOutput, setPrefix };
+export { add, loadMod as load, postLoad, postLoadOne as postLoadSingleMod, setInfoOutput, setPrefix };
 

@@ -5,26 +5,40 @@ import { categories, content, get, registries, tryGet, types } from "./environme
 import { addHandler } from "./get-content-file.js";
 import { parseContent } from "./language.js";
 import { Mod } from "./mod.js";
-import { load, postLoad, setInfoOutput, setMods, setPrefix } from "./modloader.js";
+import {
+  add,
+  load,
+  postLoad,
+  postLoadSingleMod,
+  setInfoOutput,
+  setMods,
+  setPrefix,
+  unloadMods
+} from "./modloader.js";
 import { RegisteredItem } from "./registry-item.js";
 import { Registry, StaticRegistry, TypeRegistry } from "./registry.js";
 
 export {
-  addHandler, addModdableRegistry,
+  add,
+  addHandler,
+  addModdableRegistry,
   categories,
   Content,
   content,
   get,
   load,
   Mod,
-  parseContent, postLoad, RegisteredItem,
+  parseContent,
+  postLoad, postLoadSingleMod, RegisteredItem,
   registries,
   Registry,
-  setInfoOutput, setMods, setPrefix,
+  setInfoOutput,
+  setMods,
+  setPrefix,
   StaticRegistry,
   tryGet,
   TypeRegistry,
-  types
+  types, unloadMods
 };
 /**
  * Constructs an object using types from the `Integrate.types` registry.\

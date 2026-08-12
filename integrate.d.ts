@@ -381,14 +381,18 @@ declare namespace Integrate {
    */
   export function setInfoOutput(func: (info: string) => void);
 
-  /** Adds all mods loaded. Required for mods to exist. */
+  /** Adds content from all mods loaded. Required for mods to be applied. */
   export function postLoad();
+  /** Adds content from one specific mod. Prefer using `postLoad` or `setMods` when possible, but if registry clearing is undesirable, use this. */
+  export function postLoad(mod: Mod);
   /** Removes all mod definitions loaded. Does nothing to registries, but can reduce memory use. */
   export function unloadMods();
   /** Unloads existing mods, loads the specified mods and performs post-loading. Useful for compact loading of a known list. @param paths Paths to mods, as you would pass them to {@linkcode loadMod} */
   export async function setMods(...paths: string[]);
   /** Loads a mod. */
   export async function load(path: string): Mod;
+  /** Loads and post-loads a mod, without clearing registries. */
+  export async function add(path: string): Mod;
   /** Gets an object from any moddable registries. Uses file path notation: `blocks/wall` gets the content named `wall` from the registry `blocks`.
    */
   export function get(name: string): object;
