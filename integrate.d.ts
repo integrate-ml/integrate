@@ -349,10 +349,10 @@ declare namespace Integrate {
     registry: string;
     /** Name of this content in registry. */
     name: string;
-    /** The JSON serialisable constructible object used to create instances of this content. */
-    constructible: {};
-    /** The JSON equivalent of the constructible. */
-    JSON: string;
+    /** The (serialisable and constructible) object used to create instances of this content. */
+    value: object;
+    /** If true, this content shouldn't be constructed directly. */
+    isStatic: boolean;
     implement(): void;
     create(): object;
   }
